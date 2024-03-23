@@ -129,8 +129,21 @@ func decodeArray3(r *bytes.Reader) ([]interface{}, error) {
 	actualLength := length >> 1
 
 	var arr []interface{}
-	for i := uint32(0); i < actualLength; i++ {
-		elem, err := DecodeAMF3(r) // Adjust decodeAMF3 to accept *bytes.Reader
+	for i := uint32(0); i <= actualLength; i++ {
+		if i == 0 {
+			b, err := r.ReadByte()
+			if err != nil {
+				return nil, err // Handle the error properly.
+			}
+			if b == 1 { // nil byte as a first byte in array, just skip it
+				continue // Skip only if the first byte is 0.
+			} else {
+				if err := r.UnreadByte(); err != nil {
+					return nil, err // Handle potential error from UnreadByte.
+				}
+			}
+		}
+		elem, err := DecodeAMF3(r) // Assuming DecodeAMF3 is correctly defined to handle *bytes.Reader.
 		if err != nil {
 			return nil, err
 		}
@@ -150,7 +163,7 @@ func decodePropertyName(reader *bytes.Reader) (string, int, error) {
 	// The length is stored as (length << 1) | 1, so we need to reverse this operation to get the actual length
 	actualLength := lengthU29 >> 1
 	if actualLength == 0 {
-		return "", bytesReadU29, errors.New("property name length is zero")
+		return "", bytesReadU29, nil
 	}
 
 	// Read the property name bytes based on the length decoded
@@ -173,7 +186,7 @@ func decodeObject3(reader *bytes.Reader) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	if marker != amf3Object {
+	if marker != amf3Dynamic {
 		return nil, fmt.Errorf("expected AMF3 object marker but got: %x", marker)
 	}
 
