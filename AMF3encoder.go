@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	amf3MaxInt = 268435455  // (2^28)-1
-	amf3MinInt = -268435456 // -(2^28)
+	AMF3MaxInt = 268435455  // (2^28)-1
+	AMF3MinInt = -268435456 // -(2^28)
 )
 
 func EncodeAMF3(v interface{}) []byte {
@@ -60,9 +60,9 @@ func encodeU29(v uint) []byte {
 }
 
 func encodeInteger3(v int) []byte {
-	if v >= amf3MinInt && v <= amf3MaxInt {
+	if v >= AMF3MinInt && v <= AMF3MaxInt {
 		msg := make([]byte, 0, 1+4) // 1 header + up to 4 U29
-		msg = append(msg, amf3Integer)
+		msg = append(msg, AMF3Integer)
 		msg = append(msg, encodeU29(uint(v))...)
 		return msg
 	} else {
@@ -72,20 +72,20 @@ func encodeInteger3(v int) []byte {
 
 func encodeDouble3(v float64) []byte {
 	msg := make([]byte, 1+8) // 1 header + 8 float64
-	msg[0] = amf3Double
+	msg[0] = AMF3Double
 	binary.BigEndian.PutUint64(msg[1:], uint64(math.Float64bits(v)))
 	return msg
 }
 
 func encodeBoolean3(v bool) []byte {
 	if v {
-		return []byte{amf3True}
+		return []byte{AMF3True}
 	}
-	return []byte{amf3False}
+	return []byte{AMF3False}
 }
 
 func encodeNull3() []byte {
-	return []byte{amf3Null}
+	return []byte{AMF3Null}
 }
 
 func encodeString3(v string) []byte {
@@ -96,7 +96,7 @@ func encodeString3(v string) []byte {
 	// Length (U29): High bit for inline string, then length
 	strLen := len(v)
 	u29Len := (strLen << 1) | 1
-	buf.WriteByte(amf3String)
+	buf.WriteByte(AMF3String)
 	buf.Write(encodeU29(uint(u29Len)))
 	buf.WriteString(v)
 	return buf.Bytes()
@@ -106,7 +106,7 @@ func encodeDate3(v time.Time) []byte {
 	// Convert time to milliseconds since Unix epoch
 	milliseconds := v.UnixNano() / 1000000
 	msg := make([]byte, 0, 1+1+8)      // 1 byte for AMF3 date marker, 1 byte for U29 data (empty reference), 8 bytes for the timestamp
-	msg = append(msg, amf3Date)        // Date marker
+	msg = append(msg, AMF3Date)        // Date marker
 	msg = append(msg, encodeU29(1)...) // The U29 here is a flag (1 << 1) indicating that what follows is an inline value
 	// Append the timestamp as a double (64-bit floating point)
 	timestamp := make([]byte, 8)
@@ -117,7 +117,7 @@ func encodeDate3(v time.Time) []byte {
 
 func encodeArray3(arr []interface{}) []byte {
 	var buf bytes.Buffer
-	buf.WriteByte(amf3Array)                        // Write the array marker
+	buf.WriteByte(AMF3Array)                        // Write the array marker
 	buf.Write(encodeU29(uint((len(arr) << 1) | 1))) // Write the array length (U29)
 	buf.WriteByte(0x01)                             // Empty string (associative portion of the array)
 	// Encode and write each element
@@ -137,7 +137,7 @@ func encodePropertyName(name string) []byte {
 
 func encodeObject3(obj map[string]interface{}) []byte {
 	var buf bytes.Buffer
-	buf.WriteByte(amf3Object) // Start with the AMF3 object marker
+	buf.WriteByte(AMF3Object) // Start with the AMF3 object marker
 	buf.WriteByte(0x0B)       // Marker for dynamic object with no class definition
 	buf.WriteByte(0x01)       // Empty string for class name; adjust for actual class names
 	// Encode dynamic properties
@@ -151,7 +151,7 @@ func encodeObject3(obj map[string]interface{}) []byte {
 
 func encodeByteArray3(data []byte) []byte {
 	var buf bytes.Buffer
-	buf.WriteByte(amf3ByteArray) // Write the AMF3 ByteArray marker
+	buf.WriteByte(AMF3ByteArray) // Write the AMF3 ByteArray marker
 	// Encode the length of the byte array. AMF3 uses the first bit as a marker for inline (1) vs reference (0).
 	// Here, we shift left by 1 and then OR with 1 to indicate an inline object.
 	length := len(data)

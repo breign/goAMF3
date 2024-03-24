@@ -18,25 +18,25 @@ func DecodeAMF3(r *bytes.Reader) (interface{}, error) {
 	}
 
 	switch marker {
-	case amf3Null:
+	case AMF3Null:
 		return nil, nil
-	case amf3False:
+	case AMF3False:
 		return false, nil
-	case amf3True:
+	case AMF3True:
 		return true, nil
-	case amf3Integer:
+	case AMF3Integer:
 		return decodeInteger3(r)
-	case amf3Double:
+	case AMF3Double:
 		return decodeDouble3(r)
-	case amf3String:
+	case AMF3String:
 		return decodeString3(r)
-	case amf3Date:
+	case AMF3Date:
 		return decodeDate3(r)
-	case amf3Array:
+	case AMF3Array:
 		return decodeArray3(r)
-	case amf3Object:
+	case AMF3Object:
 		return decodeObject3(r)
-	case amf3ByteArray:
+	case AMF3ByteArray:
 		return decodeByteArray3(r)
 	default:
 		return nil, errors.New("unknown AMF3 marker")
@@ -186,7 +186,7 @@ func decodeObject3(reader *bytes.Reader) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	if marker != amf3Dynamic {
+	if marker != AMF3Dynamic {
 		return nil, fmt.Errorf("expected AMF3 object marker but got: %x", marker)
 	}
 
