@@ -1,4 +1,4 @@
-package AMF3
+package goAMF3
 
 import (
 	"encoding/binary"
