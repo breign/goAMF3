@@ -1,4 +1,4 @@
-package amf
+package AMF3
 
 import (
 	"encoding/binary"
