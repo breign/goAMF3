@@ -44,7 +44,7 @@ func InspectAndConvertPayload(payload interface{}) interface{} {
 		if _, ok := payload.(time.Time); ok {
 			return payload
 		}
-		return StructToIface(payload)
+		return StructMapToIface(payload)
 	default:
 		return payload
 	}
@@ -57,14 +57,14 @@ func SliceToIface(items interface{}) []map[string]interface{} {
 	if itemsValue.Kind() == reflect.Slice {
 		for i := 0; i < itemsValue.Len(); i++ {
 			item := itemsValue.Index(i).Interface()
-			convertedItem := StructToIface(item)
+			convertedItem := StructMapToIface(item)
 			result = append(result, convertedItem)
 		}
 	}
 	return result
 }
 
-func StructToIface(item interface{}) map[string]interface{} {
+func StructMapToIface(item interface{}) map[string]interface{} {
 	itemValue := reflect.ValueOf(item)
 	if itemValue.Kind() == reflect.Ptr {
 		itemValue = itemValue.Elem()
@@ -90,61 +90,14 @@ func StructToIface(item interface{}) map[string]interface{} {
 			// Check if the field is an embedded struct
 			if field.Anonymous {
 				// Recursively convert the embedded struct and merge its fields
-				embeddedFields := StructToIface(fieldValue.Interface())
+				embeddedFields := StructMapToIface(fieldValue.Interface())
 				for k, v := range embeddedFields {
 					result[k] = v
 				}
 			} else {
-				result[field.Name] = fieldValue.Interface()
+				result[field.Name] = InspectAndConvertPayload(fieldValue.Interface())
 			}
 		}
 	}
 	return result
-}
-
-func StructToIfaceOLD2(item interface{}) map[string]interface{} {
-	itemValue := reflect.ValueOf(item)
-	if itemValue.Kind() == reflect.Ptr {
-		itemValue = itemValue.Elem()
-	}
-
-	result := make(map[string]interface{})
-	if itemValue.Kind() == reflect.Struct {
-		itemType := itemValue.Type()
-		for i := 0; i < itemValue.NumField(); i++ {
-			field := itemType.Field(i)
-			fieldValue := itemValue.Field(i)
-
-			// Check if the field is an embedded struct
-			if field.Anonymous {
-				// Recursively convert the embedded struct and merge its fields
-				embeddedFields := StructToIface(fieldValue.Interface())
-				for k, v := range embeddedFields {
-					result[k] = v
-				}
-			} else {
-				result[field.Name] = fieldValue.Interface()
-			}
-		}
-	}
-	return result
-}
-
-// to a struct of map[string]interface{}
-func StructToIfaceOLD(item interface{}) map[string]interface{} {
-	itemValue := reflect.ValueOf(item)
-	if itemValue.Kind() == reflect.Ptr {
-		itemValue = itemValue.Elem()
-	}
-	if itemValue.Kind() == reflect.Struct {
-		result := make(map[string]interface{})
-		itemType := itemValue.Type()
-		for i := 0; i < itemValue.NumField(); i++ {
-			field := itemType.Field(i)
-			fieldValue := itemValue.Field(i)
-			result[field.Name] = fieldValue.Interface()
-		}
-		return result
-	}
-	return make(map[string]interface{})
 }
