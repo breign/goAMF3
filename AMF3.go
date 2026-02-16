@@ -123,7 +123,7 @@ func (cxt *Decoder) RegisterType(flexName string, instance interface{}) {
 }
 
 // Helper functions.
-func (cxt *Decoder) ReadByte() uint8 {
+func (cxt *Decoder) ReadAByte() uint8 {
 	buf := make([]byte, 1)
 	_, err := cxt.stream.Read(buf)
 	cxt.saveError(err)
@@ -205,11 +205,19 @@ func (cxt *Encoder) WriteBool(b bool) {
 	binary.Write(cxt.stream, binary.BigEndian, uint8(val))
 }
 
+// ReadInt29 reads an AMF3 "Integer" (signed 29-bit) from the stream.
+func (cxt *Decoder) ReadInt29() int32 {
+	u := cxt.ReadUint29()
+	// Sign-extend 29-bit -> 32-bit:
+	// Move bit 28 into bit 31, then arithmetic shift back.
+	return int32(u<<3) >> 3
+}
+
 // Read a 29-bit compact encoded integer (as defined in AVM3)
 func (cxt *Decoder) ReadUint29() uint32 {
 	var result uint32 = 0
 	for i := 0; i < 4; i++ {
-		b := cxt.ReadByte()
+		b := cxt.ReadAByte()
 
 		if cxt.errored() {
 			return 0
@@ -718,7 +726,7 @@ func (cxt *Decoder) ReadValue() interface{} {
 func (cxt *Decoder) ReadValueAmf3() interface{} {
 
 	// Read type marker
-	typeMarker := cxt.ReadByte()
+	typeMarker := cxt.ReadAByte()
 
 	if cxt.errored() {
 		return nil
@@ -732,7 +740,7 @@ func (cxt *Decoder) ReadValueAmf3() interface{} {
 	case AMF3True:
 		return true
 	case AMF3Integer:
-		return cxt.ReadUint29()
+		return cxt.ReadInt29()
 	case AMF3Double:
 		return cxt.ReadFloat64()
 	case AMF3String:
@@ -764,7 +772,62 @@ func (cxt *Encoder) WriteValueAmf3(value interface{}) error {
 	return cxt.writeReflectedValueAmf3(reflect.ValueOf(value))
 }
 
+/*
+	func (ctx *Encoder) writeReflectedValueAmf3(value reflect.Value) error {
+		if !value.IsValid() {
+			return ctx.writeByte(AMF3Null)
+		}
+		// Get by Kind()
+		switch value.Kind() {
+		case reflect.String:
+			ctx.writeByte(AMF3String)
+			return ctx.WriteStringAmf3(value.String())
+		case reflect.Bool:
+			if value.Bool() {
+				return ctx.writeByte(AMF3True)
+			}
+			return ctx.writeByte(AMF3False)
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32:
+			ctx.writeByte(AMF3Integer)
+			return ctx.WriteUint29(uint32(value.Int()))
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32:
+			ctx.writeByte(AMF3Integer)
+			return ctx.WriteUint29(uint32(value.Uint()))
+		case reflect.Int64, reflect.Uint64:
+			ctx.writeByte(AMF3Double)
+			if value.Kind() == reflect.Uint64 {
+				return ctx.WriteFloat64(float64(value.Uint()))
+			}
+			return ctx.WriteFloat64(float64(value.Int()))
+		case reflect.Float32, reflect.Float64:
+			ctx.writeByte(AMF3Double)
+			return ctx.WriteFloat64(value.Float())
+		case reflect.Array, reflect.Slice:
+			// Specifically check for []byte to encode as AMF3 ByteArray
+			if value.Type().Elem().Kind() == reflect.Uint8 {
+				return ctx.writeByteArrayAmf3(value.Bytes())
+			} else {
+				ctx.writeByte(AMF3Array)
+				return ctx.writeReflectedArrayAmf3(value)
+			}
+		default:
+			// Handle time.Time and map[string]interface{} types by type assertion
+			switch v := value.Interface().(type) {
+			case time.Time:
+				return ctx.WriteDateAmf3(v)
+			case map[string]interface{}:
+				return ctx.writeDynamicObjectAmf3(v)
+			default:
+				return fmt.Errorf("writeReflectedValueAmf3 doesn't support kind %s or type: %s", value.Kind().String(), value.Type().String())
+			}
+		}
+	}
+*/
 func (cxt *Encoder) writeReflectedValueAmf3(value reflect.Value) error {
+	if !value.IsValid() {
+		return cxt.writeByte(AMF3Null)
+	}
+
 	// Get by Kind()
 	switch value.Kind() {
 	case reflect.String:
